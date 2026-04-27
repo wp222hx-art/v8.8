@@ -35,14 +35,10 @@ export function HUD() {
         </div>
       </div>
 
-      {/* ========== LEFT SIDEBAR (ribbon tabs) ========== */}
-      <div className="fixed left-0 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-2 pointer-events-none">
-        <SideTab icon="⭐" label="Events" badge={3} />
-        <SideTab icon="🎒" label="Daily" badge={1} />
-        <SideTab icon="📜" label="Mail" />
-        <SideTab icon="🏆" label="Achievements" badge={2} />
-        <SideTab icon="📖" label="Story" />
-      </div>
+      {/* Left sidebar (Events/Daily/Mail/...) was removed in Plan D —
+          those menus belong to HexGame's original shell and interfere
+          with the immersive paper-theater scene. Re-add per-feature UI
+          as HUD pieces when each mechanic lands. */}
 
       {/* ========== BOTTOM TABBAR ========== */}
       <div

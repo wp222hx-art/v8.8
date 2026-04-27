@@ -23,6 +23,8 @@ import { AwakenMask } from '@engine/AwakenMask';
 import { SealPoint } from '@engine/SealPoint';
 import { Landmark, RIVERSHIRE_LANDMARKS } from '@engine/Landmarks';
 import { buildSealsDebug, isSealsDebugEnabled } from '@engine/SealsDebug';
+import { BuildingSprite } from '@engine/BuildingSprite';
+import { BUILDING_BY_LANDMARK } from '@engine/BuildingRegistry';
 
 const MAP_URL = '/assets/maps/rivershire.png';
 const MAP_W = 1328;
@@ -37,6 +39,7 @@ export function LandmarkScene({ onAwaken }: Props) {
   const appRef = useRef<Application | null>(null);
   const maskRef = useRef<AwakenMask | null>(null);
   const sealsRef = useRef<Map<string, SealPoint>>(new Map());
+  const buildingsRef = useRef<Map<string, BuildingSprite>>(new Map());
   const onAwakenRef = useRef(onAwaken);
   useEffect(() => { onAwakenRef.current = onAwaken; }, [onAwaken]);
 
@@ -67,6 +70,12 @@ export function LandmarkScene({ onAwaken }: Props) {
       host.appendChild(app.canvas);
       app.canvas.classList.add('pixi-stage');
       appRef.current = app;
+      // Expose to window when ?debug=1 for puppeteer / devtools inspection.
+      try {
+        if (new URLSearchParams(window.location.search).get('debug') === '1') {
+          (window as any).__PIXI_APP__ = app;
+        }
+      } catch {}
 
       // === 2. Outer backdrop (candle-lit vignette) ===
       const backdrop = new Graphics();
@@ -117,19 +126,52 @@ export function LandmarkScene({ onAwaken }: Props) {
       });
       world.addChild(border);
 
-      // === 7. Place seal points ===
+      // === 7a. Place building sprites (below seals) ===
+      //
+      //   Buildings are rendered ABOVE the awaken-mask's reveal window so the
+      //   real watercolor building stands up out of the ground, hiding the
+      //   less-detailed underlying map art. We pre-load them (alpha=0) so the
+      //   awaken animation is instant when the player taps.
+      setLoadingText('拼好纸片立牌…');
+      const buildingsContainer = new Container();
+      buildingsContainer.label = 'buildings';
+      world.addChild(buildingsContainer);
+
+      const landmarks = RIVERSHIRE_LANDMARKS;
+      const buildingLoadPromises: Promise<void>[] = [];
+      for (const lm of landmarks) {
+        const entry = BUILDING_BY_LANDMARK.get(lm.id);
+        if (!entry) continue;
+        const bs = new BuildingSprite({
+          landmark: lm,
+          assets: entry.assets,
+          displayWidth: entry.displayWidth,
+          baseOffset: entry.baseOffset,
+          shadowHeightRatio: entry.shadowHeightRatio,
+        });
+        bs.container.position.set(lm.cx, lm.cy);
+        buildingsContainer.addChild(bs.container);
+        buildingsRef.current.set(lm.id, bs);
+        buildingLoadPromises.push(bs.load());
+      }
+      // Wait for building textures so the first awaken animation is glitch-free.
+      await Promise.allSettled(buildingLoadPromises);
+
+      // === 7b. Place seal points (top-most interaction layer) ===
       setLoadingText('盖上金色封印…');
       const sealsContainer = new Container();
       sealsContainer.label = 'seals';
       world.addChild(sealsContainer);
 
-      const landmarks = RIVERSHIRE_LANDMARKS;
       for (const lm of landmarks) {
         const seal = new SealPoint(lm);
         seal.position.set(lm.cx, lm.cy);
         seal.onAwaken = (landmark) => {
           // Animate mask reveal for this landmark
           maskRef.current?.revealLandmark(landmark);
+          // Raise the building sprite out of the ground (if any)
+          const b = buildingsRef.current.get(landmark.id);
+          if (b) void b.awaken({ delay: 0.18 });
           setLastLandmark(landmark);
           onAwakenRef.current?.(landmark);
         };
@@ -151,6 +193,7 @@ export function LandmarkScene({ onAwaken }: Props) {
           for (const lm of landmarks) {
             mask.forceReveal(lm);
             sealsRef.current.get(lm.id)?.awaken();
+            buildingsRef.current.get(lm.id)?.forceShow();
           }
           console.log('[scene] 🟢 reveal=all — everything unlocked');
         }
@@ -187,6 +230,10 @@ export function LandmarkScene({ onAwaken }: Props) {
         try { s.dispose(); } catch {}
       }
       sealsRef.current.clear();
+      for (const b of buildingsRef.current.values()) {
+        try { b.dispose(); } catch {}
+      }
+      buildingsRef.current.clear();
       try { maskRef.current?.dispose(); } catch {}
       maskRef.current = null;
       safeDestroy(appRef.current);

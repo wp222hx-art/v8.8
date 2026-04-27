@@ -28,7 +28,7 @@ export function HintOverlay() {
             transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
             className="font-hand text-parchment-100 text-lg drop-shadow-lg bg-black/30 px-4 py-2 rounded-full backdrop-blur-sm"
           >
-            👆 点击一块黑雾，翻开你的世界
+            ✦ 轻触朝雾，撕开你的世界
           </motion.div>
         </motion.div>
       )}

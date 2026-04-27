@@ -1,14 +1,16 @@
 /**
  * 🎭 SYNAPSE · Paper Theater — App root
  *
- * 玩法：方案 C · 封蜡点位探索
- *   · 底图整张褪色呈现（睡眠状态的 Rivershire）
- *   · 每个关键建筑上盖一枚金色封蜡点
- *   · 玩家点击封蜡 → 爆裂 + 水彩扩散 → 该区域彩色"醒来"
+ * 玩法：方案 D · 纸片剧场五幕舞台
+ *   · 远景幕布：天空、远山、慢云
+ *   · 远端光影：晨曦光柱、暖光晕
+ *   · 主舞台：完整 Rivershire 底图 + 热点呼吸点 + 纸片人物（ActorLayer 预留）
+ *   · 交互纸膜：朝雾 FogVeil + TearMask，点击可"撕开"
+ *   · 前景大气：飘动云絮、金色粒子、萤火
  *   · HUD 仍展示金币/精力/翻开数等数据，由 worldStore 管辖
  */
 import { useEffect, useState } from 'react';
-import { LandmarkScene } from '@scenes/LandmarkScene';
+import { PaperStageScene } from '@scenes/PaperStageScene';
 import { HUD, RevealToast } from '@ui/HUD';
 import { WelcomeBanner } from '@ui/WelcomeBanner';
 import { HintOverlay } from '@ui/HintOverlay';
@@ -53,7 +55,7 @@ export default function App() {
 
   return (
     <div className="relative w-full h-full">
-      <LandmarkScene onAwaken={handleAwaken} />
+      <PaperStageScene onAwaken={handleAwaken} />
       <HUD />
       <WelcomeBanner />
       <HintOverlay />
