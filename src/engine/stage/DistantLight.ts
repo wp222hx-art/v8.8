@@ -112,11 +112,24 @@ export class DistantLight implements LayerModule {
 
   onTick(deltaMs: number): void {
     this.t += deltaMs / 1000;
-    // Gentle breathing
-    const pulse = 0.85 + Math.sin(this.t * 0.42) * 0.15;
-    this.horizonGlow.alpha = pulse;
-    this.rayA.alpha = 0.7 + Math.sin(this.t * 0.31 + 0.7) * 0.20;
-    this.rayB.alpha = 0.8 + Math.sin(this.t * 0.27 + 2.1) * 0.20;
+
+    // Each element breathes on its own period/phase — together they read
+    // as "the light is alive", never landing in sync so the scene never
+    // feels like a GIF loop.
+    const glowPulse = 0.82 + Math.sin(this.t * 0.42) * 0.18;
+    this.horizonGlow.alpha = glowPulse;
+    // Slight horizontal drift of the glow — sun "swaying" behind the
+    // mountains. Very subtle (±4 px) but adds life.
+    this.horizonGlow.x = Math.sin(this.t * 0.15) * 4;
+
+    this.rayA.alpha = 0.65 + Math.sin(this.t * 0.31 + 0.7) * 0.25;
+    // Rays also breathe horizontally — this is what gives the "远近呼吸"
+    // feel the user asked for: the light beams sweep ever so slightly
+    // across the scene, independent of the breathing camera zoom.
+    this.rayA.x = Math.sin(this.t * 0.22) * 6;
+
+    this.rayB.alpha = 0.75 + Math.sin(this.t * 0.27 + 2.1) * 0.22;
+    this.rayB.x = Math.sin(this.t * 0.19 + 1.3) * 5;
   }
 
   dispose(): void {

@@ -207,6 +207,19 @@ export class Backdrop implements LayerModule {
         c.gfx.x = offX - 300;
       }
     }
+
+    // --- Mountain "breathing drift" ---
+    // Extremely slow horizontal oscillation of the two mountain ranges at
+    // different periods — creates the illusion of the camera very gently
+    // swaying, selling the 45° perspective. Amplitudes deliberately
+    // tiny (±3-5 px on a 1000+ px backdrop) so viewers feel it but don't
+    // consciously see motion.
+    this.farMountain.x = Math.sin(this.t * 0.11) * 5;
+    this.nearMountain.x = Math.sin(this.t * 0.14 + 1.8) * 3;
+    // A whisper of vertical breathing too — mountains "lean back" when
+    // the main stage inhales (2× slower than the stage's breath period).
+    this.farMountain.y = Math.sin(this.t * 0.18) * 2;
+    this.nearMountain.y = Math.sin(this.t * 0.22 + 0.9) * 1.5;
   }
 
   dispose(): void {

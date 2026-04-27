@@ -68,6 +68,8 @@ export class FogVeil implements LayerModule {
 
   /** Decorative wet-ink ring around each tear (drawn UNDER the veil). */
   public edgeFx: Graphics;
+  /** Dark "paper lip" shadow drawn ON TOP of the veil, inside each tear. */
+  public curlShadow: Graphics;
 
   private mapW: number;
   private mapH: number;
@@ -127,10 +129,21 @@ export class FogVeil implements LayerModule {
     this.edgeFx = new Graphics();
     this.edgeFx.label = 'tear-edge-fx';
 
-    // Scene tree: edgeFx UNDER veil (so ring shows through the tear hole),
-    // then the veil on top.
+    // 5) Paper-curl shadow — drawn ABOVE the veil, inside the hole,
+    //    simulating the dark band cast by the torn paper lip onto the
+    //    map below. Together with the outer wet-ink rings (edgeFx) this
+    //    is what gives tears a real "paper lifting up" 3D feel rather
+    //    than looking like flat cutouts.
+    this.curlShadow = new Graphics();
+    this.curlShadow.label = 'tear-curl-shadow';
+
+    // Scene tree (back → front):
+    //   edgeFx            (wet watercolor ring, visible through the hole)
+    //   veil              (the fog/paper with destination-out holes)
+    //   curlShadow        (dark paper-lip shadow projected onto map)
     this.container.addChild(this.edgeFx);
     this.container.addChild(this.veil);
+    this.container.addChild(this.curlShadow);
   }
 
   /** Open a new tear — animates from r=0 → targetR. */
@@ -181,6 +194,7 @@ export class FogVeil implements LayerModule {
     this.dirty = true;
     this.bakeVeilCanvas();
     this.redrawEdgeFx();
+    this.redrawCurlShadow();
   }
 
   onResize(_sw: number, _sh: number): void {
@@ -194,6 +208,7 @@ export class FogVeil implements LayerModule {
     if (anyAnimating) {
       this.bakeVeilCanvas();
       this.redrawEdgeFx();
+      this.redrawCurlShadow();
       this.dirty = false;
     } else if (this.tears.length > 0) {
       // Idle wobble — re-bake every ~120ms so edges feel alive.
@@ -202,6 +217,7 @@ export class FogVeil implements LayerModule {
       if (nowBucket !== prevBucket) {
         this.bakeVeilCanvas();
         this.redrawEdgeFx();
+        this.redrawCurlShadow();
       }
     }
   }
@@ -266,6 +282,58 @@ export class FogVeil implements LayerModule {
         const alpha = 0.24 - j * 0.06;
         drawOrganicBlobToGfx(g, tr.x, tr.y, rr, tr.seed + 1, tr.edgeWobble * 1.3, this.t);
         g.stroke({ color: tr.moodColor, width: 2.5 - j * 0.6, alpha });
+      }
+    }
+  }
+
+  /**
+   * Draw the "paper curl" inner shadow — a dark, soft band sitting ON TOP
+   * of the visible map inside each tear. Visually it reads as a shadow
+   * cast by the torn paper lip onto the terrain below, which is what
+   * makes the whole scene feel like real paper layered on top of
+   * watercolor — giving the 3D / isometric feel the user asked for.
+   *
+   * Technique: for each tear, stroke a slightly-SMALLER organic blob
+   * (so the shadow band hugs the inside of the hole) with a soft dark
+   * colour. We draw several concentric strokes from dark-near-edge to
+   * transparent-toward-centre to fake a gaussian gradient without
+   * needing a blur filter (cheap on mobile GPUs).
+   *
+   * Because this Graphics sits ABOVE the veil sprite in the container,
+   * the shadow ring is clipped by the veil-less hole automatically —
+   * wherever the veil is still opaque, the veil simply covers the
+   * shadow. No extra masking required.
+   */
+  private redrawCurlShadow(): void {
+    const g = this.curlShadow;
+    g.clear();
+    for (const tr of this.tears) {
+      if (tr.r < 8) continue;
+      // 4 concentric strokes, from "at the edge" (darkest) to "well
+      // inside" (invisible). We scale the radius by 0.97 → 0.82 so the
+      // band is ~18% of the tear radius — enough to feel like depth,
+      // not so much it obscures the landmark underneath.
+      // Ring band definitions: [radiusMultiplier, alpha, widthPx].
+      // Tuned so the shadow hugs the outer 8-10% of the hole only — this
+      // reads as "paper lip casting shadow onto map" without darkening
+      // the landmark content inside the tear.
+      const ringDefs: Array<[number, number, number]> = [
+        [0.992, 0.28, 4.0],
+        [0.965, 0.16, 6.0],
+        [0.935, 0.07, 7.0],
+      ];
+      for (const [rMul, alpha, width] of ringDefs) {
+        const rr = tr.r * rMul;
+        drawOrganicBlobToGfx(
+          g,
+          tr.x + 1.5,               // tiny offset down-right simulates
+          tr.y + 2.0,               // light coming from upper-left
+          rr,
+          tr.seed + 17,
+          tr.edgeWobble * 0.6,      // smoother than outer wet-ink ring
+          this.t,
+        );
+        g.stroke({ color: 0x1a0f07, width, alpha });
       }
     }
   }

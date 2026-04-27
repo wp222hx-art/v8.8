@@ -209,14 +209,26 @@ export function PaperStageScene({ onAwaken }: Props) {
         backdrop.onResize(sw, sh);
         distantLight.onResize(sw, sh);
 
+        // The inner `tilt` container applies skewX + scaleY; the map's
+        // apparent bounding box shrinks vertically to MAP_H * tiltScaleY
+        // and stretches horizontally by roughly `tan(tiltSkewX) * MAP_H / 2`.
+        // We account for both so the fit-to-viewport math doesn't clip
+        // the tilted corners off-screen.
+        const tiltH = MAP_H * stage.tiltScaleY;
+        const tiltW = MAP_W + Math.abs(Math.tan(stage.tiltSkewX)) * MAP_H;
+
         const mx = 12, mTop = 74, mBottom = 140;
         const availW = sw - mx * 2;
         const availH = sh - mTop - mBottom;
-        const s = Math.min(availW / MAP_W, availH / MAP_H);
-        stage.world.scale.set(s);
+        const s = Math.min(availW / tiltW, availH / tiltH);
+
+        // setWorldBaseScale snaps world.scale immediately AND stores the
+        // base so the breathing oscillation in PaperStage.tick() rides on
+        // top of it without fighting resize events.
+        stage.setWorldBaseScale(s);
         stage.world.position.set(
           (sw - MAP_W * s) / 2,
-          mTop + (availH - MAP_H * s) / 2
+          mTop + (availH - tiltH * s) / 2
         );
         stage.onResize(sw, sh);
       };

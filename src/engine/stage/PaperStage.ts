@@ -54,8 +54,21 @@ export class PaperStage {
   public readonly app: Application;
   /** Screen-space parallax containers (don't scale with map). */
   private screenLayers = new Map<StageLayer, Container>();
-  /** World-space container (scaled to fit map). */
+  /**
+   * Outer world container — handles fit-to-viewport scale + breathing camera.
+   * External code SHOULD call `world.scale.set(...)` / `world.position.set(...)`
+   * on this one (it's what `fitWorld` in the scene does).
+   */
   public readonly world: Container;
+  /**
+   * Inner tilted container — child of `world`. This is where the 45°-ish
+   * isometric projection lives (skewY + scaleY compress) so the map looks
+   * like it's tilted back into the distance. Modules that want TRUE
+   * top-down coordinates (Backdrop, DistantLight — those are screen-space
+   * anyway) are unaffected. MainStage / InteractVeil / FrontMist all sit
+   * inside `tilt` and therefore get the 3D feel for free.
+   */
+  public readonly tilt: Container;
   /** Modules keyed by layer. */
   private modules = new Map<StageLayer, LayerModule>();
 
@@ -67,6 +80,43 @@ export class PaperStage {
   private pyTarget = 0;
   /** Max input offset (px) — screen-space "tilt range". */
   public parallaxRange = 18;
+
+  /**
+   * --- Isometric projection parameters ---
+   *   tiltSkewX  — horizontal skew (radians). Positive value pushes the top
+   *                of the map LEFT, simulating a camera looking down at ~45°.
+   *                0.18 rad ≈ 10.3° — enough to feel clearly three-dimensional
+   *                ("paper on a desk") without breaking the top-down readability
+   *                of landmarks.
+   *   tiltScaleY — vertical compression. 0.78 ≈ "the plane is rotated back
+   *                ~39° about the X axis" (cos 39° ≈ 0.777). That's around
+   *                a classic JRPG / Stardew-Valley-esque 45°-ish tilt.
+   *   Together they give a clean top-down-at-an-angle feel while still
+   *   letting players read hex tiles and building sprites head-on.
+   */
+  public tiltSkewX = 0.18;
+  public tiltScaleY = 0.78;
+
+  /**
+   * --- Breathing camera parameters ---
+   *   Periodic scale pulse of the outer world container so the whole scene
+   *   gently "inhales / exhales" — classic Ghibli-style "breathing map"
+   *   feel. Backdrop / DistantLight are screen-space so they don't breathe;
+   *   the contrast between a breathing foreground and a static horizon is
+   *   what sells the depth.
+   */
+  public breathingEnabled = true;
+  /** Period of one inhale-exhale cycle, ms. */
+  public breathingPeriodMs = 9_500;
+  /** Amplitude: scale oscillates within ±breathingAmp of the fit-scale. */
+  public breathingAmp = 0.035;
+  /** Backdrop counter-zoom amplitude (opposite phase, half magnitude). */
+  public backdropCounterAmp = 0.018;
+
+  /** Base fit-scale set by fitWorld() — breathing rides on top of this. */
+  private worldBaseScale = 1;
+  /** Accumulated time for breathing phase, ms. */
+  private tAccum = 0;
 
   constructor(app: Application) {
     this.app = app;
@@ -80,10 +130,17 @@ export class PaperStage {
     }
 
     // World container holds MainStage + InteractVeil + FrontMist
-    // (all at map-space, but FrontMist can extend beyond for edge particles)
     this.world = new Container();
     this.world.label = 'world';
     app.stage.addChild(this.world);
+
+    // Tilt container applies the 45° isometric projection to everything
+    // inside it. Its pivot is set in `applyTilt()` to the map centre so
+    // the tilt feels like rotating a paper on the desk, not sliding it.
+    this.tilt = new Container();
+    this.tilt.label = 'world-tilt';
+    this.world.addChild(this.tilt);
+    this.applyTilt();
 
     for (const layer of [
       StageLayer.MainStage,
@@ -92,9 +149,32 @@ export class PaperStage {
     ]) {
       const c = new Container();
       c.label = `layer-${layer}`;
-      this.world.addChild(c);
+      this.tilt.addChild(c);
       this.screenLayers.set(layer, c);
     }
+  }
+
+  /**
+   * Apply (or re-apply) the isometric tilt to `this.tilt`. Called from
+   * the constructor and whenever tiltSkewX/tiltScaleY are changed.
+   * Uses `skew.x` + non-uniform scale for a cheap 45°-ish projection.
+   */
+  private applyTilt(mapCx = 664, mapCy = 880): void {
+    this.tilt.pivot.set(mapCx, mapCy);
+    this.tilt.position.set(mapCx, mapCy);
+    this.tilt.skew.set(this.tiltSkewX, 0);
+    this.tilt.scale.set(1, this.tiltScaleY);
+  }
+
+  /**
+   * Scenes call this from their `fitWorld()` after they figure out the
+   * "fit-to-viewport" scale, so breathing can ride on top of a stable
+   * base instead of fighting the resize.
+   */
+  public setWorldBaseScale(s: number): void {
+    this.worldBaseScale = s;
+    // Snap immediately so the first frame isn't mid-breath.
+    this.world.scale.set(s);
   }
 
   /** Register a module for a layer. The module's container is added to that layer. */
@@ -133,23 +213,53 @@ export class PaperStage {
     this.px += (this.pxTarget - this.px) * t;
     this.py += (this.pyTarget - this.py) * t;
 
+    // --- Breathing camera ---
+    // A slow sine oscillation that modulates world.scale around its base
+    // fit-scale. The backdrop containers counter-zoom slightly in opposite
+    // phase, which amplifies the parallax/depth feel without the backdrop
+    // literally moving in world-space.
+    if (this.breathingEnabled && this.worldBaseScale > 0) {
+      this.tAccum += deltaMs;
+      const phase = (this.tAccum / this.breathingPeriodMs) * Math.PI * 2;
+      const breath = Math.sin(phase);                 // [-1, 1]
+      const worldS = this.worldBaseScale * (1 + breath * this.breathingAmp);
+      this.world.scale.set(worldS);
+
+      // Backdrop/DistantLight counter-zoom: when the foreground inhales
+      // (zooms in), the horizon pulls back a touch — makes the depth more
+      // pronounced. These are SCREEN-space containers so their pivot is
+      // the origin (0,0); we use scale + offset around screen-centre.
+      const bdFactor = 1 - breath * this.backdropCounterAmp;
+      const sw = this.app.screen.width, sh = this.app.screen.height;
+      for (const layer of [StageLayer.Backdrop, StageLayer.DistantLight]) {
+        const c = this.screenLayers.get(layer);
+        if (!c) continue;
+        c.scale.set(bdFactor);
+        // Keep the scaled container centred on the screen so the horizon
+        // doesn't drift to a corner when scale changes.
+        c.pivot.set(sw / 2, sh / 2);
+        // Parallax offset will be applied below on TOP of this pivot.
+      }
+    }
+
     // Apply parallax per-layer
     for (const [layer, container] of this.screenLayers) {
       const f = PARALLAX[layer];
-      // Only the SCREEN-space layers (backdrop, distantLight) get direct parallax
-      // offset; world-space layers inherit world position, but we add a small
-      // relative offset for InteractVeil / FrontMist to make them "float" forward.
       if (layer === StageLayer.Backdrop || layer === StageLayer.DistantLight) {
-        container.x = this.px * f;
-        container.y = this.py * f;
+        // Screen-space layers: pivot is screen-centre (set above), so
+        // position = pivot + parallax-offset keeps the scaled content
+        // visually centred + adds the tilt-response.
+        const sw = this.app.screen.width, sh = this.app.screen.height;
+        container.x = sw / 2 + this.px * f;
+        container.y = sh / 2 + this.py * f;
       } else if (layer === StageLayer.InteractVeil || layer === StageLayer.FrontMist) {
-        // World-space offset (in map pixels). Scale input by 1/worldScale to
+        // World-space offset (in map pixels). Divide by worldScale to
         // keep visual offset consistent across zoom levels.
         const worldScale = this.world.scale.x || 1;
         container.x = (this.px * (f - 1)) / worldScale;
         container.y = (this.py * (f - 1)) / worldScale;
       }
-      // MainStage stays at origin within the world container (it IS the reference).
+      // MainStage stays at origin within the tilt container.
     }
 
     // Tick every module
