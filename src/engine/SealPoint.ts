@@ -50,7 +50,7 @@ export class SealPoint extends Container {
     // Hit area — a bit larger than wax for finger-friendly tapping
     this.eventMode = 'static';
     this.cursor = 'pointer';
-    this.hitArea = { contains: (x, y) => x * x + y * y <= 48 * 48 } as any;
+    this.hitArea = { contains: (x: number, y: number) => x * x + y * y <= 48 * 48 } as any;
 
     this.on('pointerover', this.handleOver);
     this.on('pointerout', this.handleOut);

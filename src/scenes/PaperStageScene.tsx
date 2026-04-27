@@ -30,7 +30,14 @@ import { FogVeil } from '@engine/stage/FogVeil';
 import { FrontMist } from '@engine/stage/FrontMist';
 import { HotspotLayer } from '@engine/stage/HotspotLayer';
 import { ActorLayer } from '@engine/stage/ActorLayer';
+import { BuildingLayer } from '@engine/stage/BuildingLayer';
 
+// New continuous watercolor diorama (no hex tiles, 45° angled view).
+// Hex-cut watercolor diorama with baked-in 45° perspective (miniature
+// buildings, roof planes, side walls already painted per tile).
+// rivershire.png is now the continuous watercolor diorama (no hex tiles,
+// 45° angled, handcrafted paper look). Hex-cut versions preserved as
+// rivershire_hex_v1.png / rivershire_hex_v2.png for archival.
 const MAP_URL = '/assets/maps/rivershire.png';
 const MAP_W = 1328;
 const MAP_H = 1760;
@@ -127,7 +134,51 @@ export function PaperStageScene({ onAwaken }: Props) {
       });
       mainLayer.addChild(border);
 
-      // === 5. ActorLayer (above map, below fog veil) ===
+      // === 5a. BuildingLayer — static 45° dioramas sitting on the map ===
+      // Added BEFORE ActorLayer so actors (tiny villagers walking around)
+      // naturally render in front of buildings when at the same Y line.
+      const buildings = new BuildingLayer();
+      mainLayer.addChild(buildings.container);
+
+      // Sprint 2 roster: 3 hand-painted 45° isometric watercolor buildings
+      // matching the new text-free Rivershire base map. Each sprite has its
+      // own painted ground-shadow baked in, so we don't need a separate
+      // shadow texture right now — shadowUrl omitted.
+      //
+      // Positioning convention: BuildingLayer anchors the sprite at (0.5, 1.0)
+      // — i.e. bottom-centre on the (x, y) world point. The landmark's
+      // (cx, cy) point to the visual *centre* of the footprint oval on the
+      // base map, so we shift y down by (footprintOvalRadiusY * ~0.5) so the
+      // building appears to *stand on* the plot rather than float on top of
+      // it. Tuned per-building below.
+      const SPRINT2_BUILDINGS: Array<{
+        id: string;
+        texturePath: string;
+        /** Rendered height in map-space px. */
+        height: number;
+        /** Y-offset below landmark centre (push sprite's feet down). */
+        feetOffsetY: number;
+      }> = [
+        // Village Hall — tall stone-and-timber, 3:4 aspect
+        { id: 'village-hall', texturePath: '/assets/buildings/village-hall-v2/main.webp', height: 330, feetOffsetY: 100 },
+        // Forge — square, compact
+        { id: 'blacksmith',   texturePath: '/assets/buildings/forge/main.webp',            height: 240, feetOffsetY: 55  },
+        // Sheep pen — wide, flat
+        { id: 'sheep-pen',    texturePath: '/assets/buildings/sheep-pen/main.webp',        height: 150, feetOffsetY: 40  },
+      ];
+      for (const b of SPRINT2_BUILDINGS) {
+        const lm = RIVERSHIRE_LANDMARKS.find((l) => l.id === b.id);
+        if (!lm) continue;
+        buildings.addBuilding({
+          id: b.id,
+          x: lm.cx,
+          y: lm.cy + b.feetOffsetY,
+          textureUrl: b.texturePath,
+          height: b.height,
+        }).catch((e) => console.warn(`[PaperStageScene] ${b.id} load:`, e));
+      }
+
+      // === 5b. ActorLayer (above map + buildings, below fog veil) ===
       const actors = new ActorLayer();
       mainLayer.addChild(actors.container);
       actorsRef.current = actors;

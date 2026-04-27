@@ -83,19 +83,21 @@ export class PaperStage {
 
   /**
    * --- Isometric projection parameters ---
-   *   tiltSkewX  — horizontal skew (radians). Positive value pushes the top
-   *                of the map LEFT, simulating a camera looking down at ~45°.
-   *                0.18 rad ≈ 10.3° — enough to feel clearly three-dimensional
-   *                ("paper on a desk") without breaking the top-down readability
-   *                of landmarks.
-   *   tiltScaleY — vertical compression. 0.78 ≈ "the plane is rotated back
-   *                ~39° about the X axis" (cos 39° ≈ 0.777). That's around
-   *                a classic JRPG / Stardew-Valley-esque 45°-ish tilt.
-   *   Together they give a clean top-down-at-an-angle feel while still
-   *   letting players read hex tiles and building sprites head-on.
+   *   DISABLED by default (tiltSkewX = 0, tiltScaleY = 1).
+   *
+   *   The `rivershire.png` base art is already painted with a 45°-diorama
+   *   perspective baked in — each hex already shows building side walls,
+   *   roof planes, and tiny 3D details from an isometric camera. Applying
+   *   a skew/scale tilt on TOP of art that already has perspective creates
+   *   double-distortion: rectangles go trapezoidal, the hex grid reads as
+   *   warped, and landmark sprites visibly lean.
+   *
+   *   The plumbing is kept in place so a future flat (un-tilted) base map
+   *   can opt into the projection by setting these to non-zero values
+   *   (e.g. tiltSkewX = 0.12, tiltScaleY = 0.85).
    */
-  public tiltSkewX = 0.18;
-  public tiltScaleY = 0.78;
+  public tiltSkewX = 0;
+  public tiltScaleY = 1;
 
   /**
    * --- Breathing camera parameters ---
