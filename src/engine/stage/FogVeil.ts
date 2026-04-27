@@ -105,12 +105,17 @@ export class FogVeil implements LayerModule {
 
     // 3) Sprite using the canvas as texture. We use CanvasSource explicitly
     //    with transparent:true so the alpha channel of our canvas (with tears
-    //    erased via destination-out) survives the WebGL upload. When the
-    //    canvas is mutated we call source.update() to re-upload.
+    //    erased via destination-out) survives the WebGL upload.
+    //    CRITICAL: alphaMode must be 'premultiplied-alpha' (NOT the default
+    //    'premultiply-alpha-on-upload'). Canvas2D already stores pixels
+    //    premultiplied — if we tell Pixi to premultiply again on upload it
+    //    will zero-out the RGB of transparent pixels AND corrupt alpha,
+    //    which makes the tear holes vanish on GPU even though getImageData
+    //    on the CPU-side canvas still shows them.
     const src = new CanvasSource({
       resource: this.veilCanvas,
       transparent: true,
-      // Let Pixi re-upload on every update() call.
+      alphaMode: 'premultiplied-alpha',
     });
     const tex = new Texture({ source: src });
     this.veil = new Sprite(tex);
@@ -233,21 +238,20 @@ export class FogVeil implements LayerModule {
     }
     ctx.globalCompositeOperation = 'source-over';
 
-    // 3) Tell Pixi to re-upload. For CanvasSource in Pixi v8 we must call
-    //    update() which emits the "update" event the renderer listens to.
-    const src = this.veil.texture.source;
+    // 3) Tell Pixi to re-upload the canvas to GPU.
+    //
+    //    With alphaMode:'premultiplied-alpha' set at CanvasSource creation
+    //    time, a plain `update()` is enough — it emits the 'update' event
+    //    that TextureSource listens to and schedules a re-upload that
+    //    preserves our erased alpha.
+    //
+    //    (We used to also call unload(); that actually caused a flicker
+    //    frame where the texture was briefly empty, and on some runs the
+    //    next re-upload happened BEFORE our canvas mutation was flushed,
+    //    which is part of why tears looked "missing" on GPU.)
+    const src: any = this.veil.texture.source;
     src.update();
-    // Extra safety: some Pixi v8 builds need the source to announce a resize
-    // or a resource change for the WebGL upload to happen on the next frame.
-    // Touching `emit('update')` directly also helps.
-    (src as any).emit?.('update', src);
     this.lastBakedAt = this.t;
-    if (this.tears.length > 0 && !(this as any).__loggedBake) {
-      (this as any).__loggedBake = true;
-      console.log('[FogVeil] baked canvas — tears:', this.tears.length,
-        'src:', src.constructor.name,
-        'transparent:', (src as any).transparent);
-    }
   }
 
   /** Draw watercolor "wet" ink rings around each tear into the edgeFx Graphics. */
