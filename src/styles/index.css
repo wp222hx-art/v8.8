@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================
+ * SYNAPSE · Parchment Design System · Global Styles
+ * ========================================================= */
+
+:root {
+  --parchment-50:  #FBF6E6;
+  --parchment-100: #F5EBD6;
+  --parchment-200: #EDDDB8;
+  --parchment-300: #E2C88D;
+  --parchment-400: #CD853F;
+  --parchment-600: #8B4513;
+  --parchment-700: #5E2F0D;
+  --wax-red: #B22222;
+  --seal-blue: #4A6FA5;
+  --seal-sage: #6B8E23;
+  --seal-lamp: #F4C430;
+  --fog-light: #3B3A4A;
+  --fog-dark: #1A1823;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--fog-dark);
+}
+
+/* ---------- Parchment texture utilities ---------- */
+@layer components {
+  .parchment-bg {
+    background:
+      radial-gradient(ellipse at 20% 10%, #FBF6E6 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 90%, #E2C88D 0%, transparent 55%),
+      linear-gradient(135deg, #F5EBD6 0%, #EDDDB8 100%);
+    position: relative;
+  }
+  .parchment-bg::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.36 0 0 0 0 0.18 0 0 0 0 0.05 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+  }
+
+  .ribbon-tab {
+    @apply relative inline-flex items-center gap-2 px-4 py-2
+           text-parchment-700 font-story text-sm tracking-wide
+           bg-parchment-100 border border-parchment-400/60
+           shadow-[0_2px_4px_rgba(94,47,13,0.15)];
+    clip-path: polygon(8% 0, 100% 0, 100% 100%, 8% 100%, 0 50%);
+  }
+
+  .wax-seal {
+    @apply inline-flex items-center justify-center
+           w-10 h-10 rounded-full text-parchment-50
+           font-story text-lg shadow-paper-deep;
+    background: radial-gradient(circle at 35% 30%, #D94040 0%, #8B1A1A 65%, #5C0F0F 100%);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+  }
+
+  .btn-paper {
+    @apply px-5 py-2 font-story text-parchment-700
+           bg-parchment-100 border border-parchment-600/50
+           rounded-md shadow-parchment
+           transition-all duration-200
+           hover:bg-parchment-50 hover:-translate-y-0.5
+           active:translate-y-0 active:shadow-sm;
+  }
+}
+
+/* ---------- Scrollbar (subtle parchment) ---------- */
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(139, 69, 19, 0.3);
+  border-radius: 3px;
+}
+
+/* ---------- Pixi canvas block styling ---------- */
+canvas.pixi-stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ---------- Text selection ---------- */
+::selection {
+  background: rgba(178, 34, 34, 0.25);
+  color: inherit;
+}

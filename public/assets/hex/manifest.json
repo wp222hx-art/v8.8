@@ -1,0 +1,64 @@
+{
+  "tiles": [
+    {
+      "id": "forest",
+      "file": "hex/forest.png",
+      "w": 256
+    },
+    {
+      "id": "grassland",
+      "file": "hex/grassland.png",
+      "w": 256
+    },
+    {
+      "id": "wheat",
+      "file": "hex/wheat.png",
+      "w": 256
+    },
+    {
+      "id": "river",
+      "file": "hex/river.png",
+      "w": 256
+    },
+    {
+      "id": "mountain",
+      "file": "hex/mountain.png",
+      "w": 256
+    },
+    {
+      "id": "ruins",
+      "file": "hex/ruins.png",
+      "w": 256
+    },
+    {
+      "id": "village",
+      "file": "hex/village.png",
+      "w": 256
+    },
+    {
+      "id": "marsh",
+      "file": "hex/marsh.png",
+      "w": 256
+    },
+    {
+      "id": "desert",
+      "file": "hex/desert.png",
+      "w": 256
+    },
+    {
+      "id": "snow",
+      "file": "hex/snow.png",
+      "w": 256
+    },
+    {
+      "id": "lava",
+      "file": "hex/lava.png",
+      "w": 256
+    },
+    {
+      "id": "fogged",
+      "file": "hex/fogged.png",
+      "w": 256
+    }
+  ]
+}

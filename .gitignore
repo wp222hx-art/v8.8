@@ -1,0 +1,33 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.local
+.vite/
+.shots/*.png
+assets/style-lock/*.png
+/tmp/
+
+# Development screenshots are ephemeral; only keep the current demo ones in git
+public/dev/shots/D*.png
+public/dev/shots/H*.png
+public/dev/shots/I_*.png
+public/dev/shots/J_*.png
+public/dev/shots/K_*.png
+public/dev/shots/L_*.png
+public/dev/shots/M_*.png
+public/dev/shots/S1_*.png
+public/dev/shots/S2_*.png
+public/dev/shots/S3_*.png
+public/dev/shots/S4_*.png
+public/dev/shots/S5_*.png
+public/dev/shots/S6_*.png
+public/dev/shots/S7_*.png
+public/dev/shots/S8_*.png
+public/dev/shots/S9_*.png
+public/dev/shots/T0_*.png
+public/dev/shots/T1_*.png
+public/dev/shots/vh_*.png
+
+# Keep: S10_landing_final.png, S11_after_gradient_fix.png (current golden states)
